@@ -1,106 +1,21 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { TextField, Button, Typography, Card, CardContent, Grid } from '@mui/material';
-
-const initialFeatures = {
-    MSSubClass: '',
-    MSZoning: '',
-    LotFrontage: '',
-    LotArea: '',
-    Street: '',
-    Alley: '',
-    LotShape: '',
-    LandContour: '',
-    Utilities: '',
-    LotConfig: '',
-    LandSlope: '',
-    Neighborhood: '',
-    Condition1: '',
-    Condition2: '',
-    BldgType: '',
-    HouseStyle: '',
-    OverallQual: '',
-    OverallCond: '',
-    YearBuilt: '',
-    YearRemodAdd: '',
-    RoofStyle: '',
-    RoofMatl: '',
-    Exterior1st: '',
-    Exterior2nd: '',
-    MasVnrType: '',
-    MasVnrArea: '',
-    ExterQual: '',
-    ExterCond: '',
-    Foundation: '',
-    BsmtQual: '',
-    BsmtCond: '',
-    BsmtExposure: '',
-    BsmtFinType1: '',
-    BsmtFinSF1: '',
-    BsmtFinType2: '',
-    BsmtFinSF2: '',
-    BsmtUnfSF: '',
-    TotalBsmtSF: '',
-    Heating: '',
-    HeatingQC: '',
-    CentralAir: '',
-    Electrical: '',
-    firstFlrSF: '',
-    secondFlrSF: '',
-    LowQualFinSF: '',
-    GrLivArea: '',
-    BsmtFullBath: '',
-    BsmtHalfBath: '',
-    FullBath: '',
-    HalfBath: '',
-    BedroomAbvGr: '',
-    KitchenAbvGr: '',
-    KitchenQual: '',
-    TotRmsAbvGrd: '',
-    Functional: '',
-    Fireplaces: '',
-    FireplaceQu: '',
-    GarageType: '',
-    GarageYrBlt: '',
-    GarageFinish: '',
-    GarageCars: '',
-    GarageArea: '',
-    GarageQual: '',
-    GarageCond: '',
-    PavedDrive: '',
-    WoodDeckSF: '',
-    OpenPorchSF: '',
-    EnclosedPorch: '',
-    SsnPorch: '',
-    ScreenPorch: '',
-    PoolArea: '',
-    PoolQC: '',
-    Fence: '',
-    MiscFeature: '',
-    MiscVal: '',
-    MoSold: '',
-    YrSold: '',
-    SaleType: '',
-    SaleCondition: ''
-};
+import { TextField, Button, Typography, Card, CardContent } from '@mui/material';
 
 function App() {
-    const [features, setFeatures] = useState(initialFeatures);
-    const [result, setResult] = useState(null);
+    const [query, setQuery] = useState('');
+    const [budget, setBudget] = useState('');
+    const [recommendations, setRecommendations] = useState([]);
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFeatures({ ...features, [name]: value });
-    };
-
-    const handlePredict = async () => {
+    const handleRecommend = async () => {
         try {
-            const response = await axios.post('http://localhost:8000/predict', {
-                features: Object.values(features).map(Number),
+            const response = await axios.post('http://localhost:8000/recommend', {
+                query,
+                budget: parseFloat(budget)
             });
-            setResult(response.data);
+            setRecommendations(response.data);
         } catch (error) {
-            console.error('Error predicting:', error);
+            console.error('Error recommending:', error);
         }
     };
 
@@ -108,28 +23,35 @@ function App() {
         <div style={{ padding: '20px' }}>
             <Card>
                 <CardContent>
-                    <Typography variant="h5">Predict and Explain</Typography>
-                    <Grid container spacing={2}>
-                        {Object.keys(initialFeatures).map((feature, index) => (
-                            <Grid item xs={12} sm={6} md={4} key={index}>
-                                <TextField
-                                    label={feature}
-                                    name={feature}
-                                    value={features[feature]}
-                                    onChange={handleChange}
-                                    fullWidth
-                                    style={{ marginBottom: '20px' }}
-                                />
-                            </Grid>
-                        ))}
-                    </Grid>
-                    <Button variant="contained" color="primary" onClick={handlePredict}>
-                        Predict
+                    <Typography variant="h5">House Recommendation</Typography>
+                    <TextField
+                        label="What do you want in your house?"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        fullWidth
+                        style={{ marginBottom: '20px' }}
+                    />
+                    <TextField
+                        label="What's your budget?"
+                        value={budget}
+                        onChange={(e) => setBudget(e.target.value)}
+                        fullWidth
+                        style={{ marginBottom: '20px' }}
+                    />
+                    <Button variant="contained" color="primary" onClick={handleRecommend}>
+                        Get Recommendations
                     </Button>
-                    {result && (
+                    {recommendations.length > 0 && (
                         <div style={{ marginTop: '20px' }}>
-                            <Typography variant="h6">Prediction: {result.prediction}</Typography>
-                            <Typography variant="body1">Explanation: {result.explanation}</Typography>
+                            {recommendations.map((rec, index) => (
+                                <Card key={index} style={{ marginBottom: '10px' }}>
+                                    <CardContent>
+                                        <Typography variant="body1">
+                                            Recommendation {index + 1}: {JSON.stringify(rec)}
+                                        </Typography>
+                                    </CardContent>
+                                </Card>
+                            ))}
                         </div>
                     )}
                 </CardContent>

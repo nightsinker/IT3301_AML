@@ -1,53 +1,57 @@
+import pandas as pd
+import joblib
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
-import joblib
-from transformers import pipeline
 from fastapi.middleware.cors import CORSMiddleware
-import os
+from transformers import pipeline, AutoModelForSeq2SeqLM, AutoTokenizer
 
-# Load Random Forest Model (use absolute path if necessary)
+# Load dataset
+df = pd.read_csv(r'C:\Users\User\IT3301_AML\Assignment\house_pricing.csv')
+
+# Load random forest model
 rf_model_path = 'C:/Users/User/IT3301_AML/Assignment/finetuned_rf_model.pkl'
 rf_model = joblib.load(rf_model_path)
 
-# Set Up LLM Pipeline (Using a smaller, free model)
-llm_pipeline = pipeline('text-generation', model='distilgpt2')
+# Load language model
+tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
+model = AutoModelForSeq2SeqLM.from_pretrained("facebook/bart-large-cnn")
+query_pipeline = pipeline('text2text-generation', model=model, tokenizer=tokenizer)
 
-# Define Request and Response Models
-class Features(BaseModel):
-    features: list[float]
-
-class PredictionResponse(BaseModel):
-    prediction: float
-    explanation: str
-
-# Initialize FastAPI App
+# FastAPI app
 app = FastAPI()
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-@app.post("/predict", response_model=PredictionResponse)
-async def predict(features: Features):
-    # Get Random Forest Prediction
-    prediction = rf_model.predict([features.features])
-    
-    # Generate LLM Response
-    llm_input = f"Explain the prediction {prediction[0]}"
-    llm_response = llm_pipeline(llm_input, max_length=100)
-    
-    response = PredictionResponse(
-        prediction=prediction[0],
-        explanation=llm_response[0]['generated_text']
-    )
-    
-    return response
+class UserQuery(BaseModel):
+    query: str
+    budget: float
 
+def interpret_query(query):
+    response = query_pipeline(query)
+    return response[0]['generated_text']
+
+def recommend_houses(preferences, budget, df, model):
+    # Convert preferences to a format suitable for the model
+    # This needs to be implemented based on your dataset and model
+    filtered_df = df.copy() # Apply filtering logic here
+    predictions = model.predict(filtered_df)
+    filtered_df['predicted_price'] = predictions
+    recommendations = filtered_df[filtered_df['predicted_price'] <= budget]
+    return recommendations
+
+@app.post("/recommend")
+async def recommend(user_query: UserQuery):
+    preferences = interpret_query(user_query.query)
+    recommendations = recommend_houses(preferences, user_query.budget, df, rf_model)
+    return recommendations.to_dict(orient='records')
+
+# Run the server
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
